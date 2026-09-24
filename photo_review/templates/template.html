@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>照片 Review — __TITLE__</title>
+<style>
+  :root{
+    color-scheme:dark light;
+    --bg:#16181d; --card:#1e2128; --card2:#242832; --line:#31353f;
+    --txt:#e8eaed; --dim:#9aa0aa; --accent:#5b9dff; --star:#ffca3a;
+    --del:#ff5d5d; --ok:#3ddc84;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f4f5f7; --card:#fff; --card2:#f0f1f4; --line:#dcdfe5;
+           --txt:#1c1e22; --dim:#666c76; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--txt);
+       font:15px/1.55 -apple-system,"PingFang TC","Helvetica Neue",sans-serif}
+
+  /* ── 頂列 ── */
+  header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 92%,transparent);
+         backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+         padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+  header h1{font-size:15px;margin:0;font-weight:700}
+  header .root{font-size:11px;color:var(--dim);max-width:46vw;overflow:hidden;
+               text-overflow:ellipsis;white-space:nowrap}
+  .stats{font-size:13px;color:var(--dim)}
+  .stats b{color:var(--txt)} .stats .d{color:var(--del)}
+  .spacer{flex:1}
+  .filters button,.act{background:var(--card2);color:var(--txt);border:1px solid var(--line);
+         border-radius:8px;padding:5px 11px;font-size:13px;cursor:pointer}
+  .filters button.on{background:#1f5fc0;border-color:#1f5fc0;color:#fff}
+  .act.exp{background:var(--ok);border-color:var(--ok);color:#08130c;font-weight:700}
+  .aiconf{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:5px;cursor:pointer}
+  .pagenav{font-size:13px;color:var(--dim);width:100%}
+  .pagenav a{color:var(--accent);text-decoration:none;padding:2px 6px;border-radius:6px}
+  .pagenav a.cur{background:var(--accent);color:#fff}
+
+  /* ── 標籤篩選列(2026-08-23) ── */
+  .tagbar{background:var(--card2);border-bottom:1px solid var(--line);
+          padding:7px 16px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px}
+  .tagbar .lb{color:var(--dim);flex:none}
+  .tagbar .tf{background:var(--card2);border:1px solid var(--line);color:var(--txt);
+          border-radius:20px;padding:3px 10px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .tagbar .tf.on{background:#1f5fc0;border-color:#1f5fc0;color:#fff}
+  .tagbar .tf .c{color:var(--dim);margin-left:4px;font-size:11px}
+  .tagbar .tf.on .c{color:#dbe8ff}
+  .tagbar .none{color:var(--dim);font-size:12px}
+
+  /* ── 遊標框選 ── */
+  body.lasso{user-select:none;cursor:crosshair}
+  body.lasso .card{cursor:crosshair}
+  #band{position:absolute;z-index:90;border:2px solid var(--accent);
+        background:rgba(91,157,255,.18);border-radius:4px;pointer-events:none;display:none}
+  .act.lassoon{background:#0f6b5c;border-color:#0f6b5c;color:#fff}
+
+  /* ── 卡片 ── */
+  main{max-width:1200px;margin:0 auto;padding:16px}
+  .card{display:flex;gap:16px;background:var(--card);border:1px solid var(--line);
+        border-radius:14px;padding:12px;margin:0 0 14px;scroll-margin-top:70px}
+  .card.active{outline:2px solid var(--accent);outline-offset:1px}
+  .card.del{opacity:.5;border-color:var(--del)}
+  .card.rated{border-color:color-mix(in srgb,var(--star) 55%,var(--line))}
+  .folderhead{position:sticky;top:46px;z-index:15;background:color-mix(in srgb,var(--bg) 94%,transparent);
+    backdrop-filter:blur(6px);border-left:4px solid var(--accent);padding:7px 12px;
+    margin:6px 0 12px;font-weight:700;font-size:13px;color:var(--accent)}
+  .thumb{flex:0 0 32vw;max-width:420px;min-width:220px;display:flex;flex-direction:column;gap:6px}
+  .thumb img{width:100%;max-height:60vh;object-fit:contain;border-radius:8px;
+             background:#000;cursor:zoom-in;display:block}
+  .noimg{width:100%;height:200px;border:1px dashed var(--line);border-radius:8px;
+         display:flex;align-items:center;justify-content:center;color:var(--dim);
+         text-align:center;font-size:13px;padding:10px}
+  .meta{font-size:11px;color:var(--dim);word-break:break-all}
+  .meta .fn{color:var(--txt);font-weight:600}
+  .dev{font-weight:700;padding:1px 6px;border-radius:20px;white-space:nowrap}
+  .dev.dslr{background:#2d4a2d;color:#8fe08f} .dev.ip{background:#2d3a4a;color:#8fbfe0}
+  .cp{background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:6px;
+      font-size:10px;padding:1px 6px;cursor:pointer}
+  .cp:hover{border-color:var(--accent)}
+
+  .ctrl{flex:1;display:flex;flex-direction:column;gap:10px;min-width:220px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .stars{font-size:26px;letter-spacing:3px;cursor:pointer;user-select:none;color:var(--line)}
+  .stars .s{color:#8a909c;transition:color .08s}
+  .stars .s.on{color:var(--star)}
+  .del-btn{background:transparent;border:1px solid var(--line);color:var(--dim);
+           border-radius:8px;padding:5px 12px;cursor:pointer;font-size:14px}
+  .del-btn.on{background:var(--del);border-color:var(--del);color:#fff}
+  .pick{background:transparent;border:1px solid var(--line);color:var(--dim);
+        border-radius:8px;padding:5px 12px;cursor:pointer;font-size:14px;font-family:inherit}
+  .pick.on{background:#0f6b5c;border-color:#0f6b5c;color:#fff}
+  .card.picked{border-color:#3ddc84}
+  .selinfo{font-size:13px;color:var(--dim)}
+  .selinfo b{color:var(--ok)}
+  .selinfo .stray{color:#ffb04d}
+  textarea{width:100%;min-height:80px;resize:vertical;background:var(--card2);
+           color:var(--txt);border:1px solid var(--line);border-radius:10px;
+           padding:10px 12px;font:14px/1.5 inherit}
+  textarea::placeholder{color:var(--dim)}
+  .hint{font-size:11px;color:var(--dim)}
+
+  .geo{background:var(--card2);color:var(--accent);border:1px solid var(--line);
+       border-radius:6px;font-size:10px;padding:1px 6px;cursor:pointer;font-family:inherit}
+  .geo:hover{border-color:var(--accent)}
+  .nogeo{color:var(--dim);font-size:10px}
+  #map{position:fixed;inset:0;z-index:110;background:rgba(0,0,0,.85);
+       display:none;align-items:center;justify-content:center;padding:20px}
+  #map.on{display:flex}
+  #map .box{background:var(--card);border:1px solid var(--line);border-radius:14px;
+       padding:14px;width:min(820px,100%);max-height:88vh;display:flex;flex-direction:column;gap:10px}
+  #map iframe{width:100%;height:min(56vh,460px);border:0;border-radius:10px;background:#222}
+  #map .ttl{font-size:14px;font-weight:700}
+  #map .co{font-size:12px;color:var(--dim)}
+  #map .acts{display:flex;gap:8px;flex-wrap:wrap}
+  #map .acts a,#map .acts button{background:var(--card2);color:var(--txt);border:1px solid var(--line);
+       border-radius:8px;padding:7px 13px;font-size:13px;text-decoration:none;cursor:pointer;font-family:inherit}
+  #map .acts .pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  /* ── 燈箱 ── */
+  #lb{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.92);
+      display:none;align-items:center;justify-content:center;cursor:zoom-out}
+  #lb.on{display:flex}
+  #lb img{max-width:96vw;max-height:96vh;object-fit:contain}
+
+  /* ── 底部快捷提示 ── */
+  .keys{position:fixed;bottom:0;left:0;right:0;z-index:20;text-align:center;
+        font-size:11px;color:var(--dim);background:color-mix(in srgb,var(--bg) 90%,transparent);
+        border-top:1px solid var(--line);padding:5px}
+  .keys b{color:var(--txt)}
+  .keys .starleg{color:var(--star)}
+  .toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);z-index:40;
+         background:var(--ok);color:#08130c;font-weight:700;font-size:13px;
+         padding:6px 14px;border-radius:20px;opacity:0;transition:opacity .25s;pointer-events:none}
+  .toast.show{opacity:1}
+
+  /* ── 標籤按鈕(2026-08-23 加) ── */
+  .deflt{position:sticky;top:46px;z-index:20;background:#1b2430;
+         border-bottom:1px solid var(--line);padding:8px 16px;
+         display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+  @media (prefers-color-scheme: light){ .deflt{background:#e8f0fb} }
+  .deflt .lb{color:var(--accent);font-weight:700}
+  .deflt .hint{color:var(--dim);font-size:12px}
+  .tags{border-top:1px dashed var(--line);padding-top:8px;display:flex;
+        flex-direction:column;gap:6px}
+  .tline{display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap}
+  .tline .cat{flex:none;width:60px;color:var(--dim);font-size:12px;padding-top:5px}
+  .chip{background:var(--card2);border:1px solid var(--line);color:var(--txt);
+        border-radius:20px;padding:4px 11px;font-size:13px;cursor:pointer;
+        font-family:inherit;white-space:nowrap}
+  .chip .k{color:var(--dim);font-size:10px;margin-left:5px}
+  .chip.on{background:#1f5fc0;border-color:#1f5fc0;color:#fff}
+  .chip.on .k{color:#fff}
+  .chip.auto{background:#22354d;border-color:#3d6493;color:#bcd8ff}
+  @media (prefers-color-scheme: light){ .chip.auto{background:#dbe8fb;border-color:#89b0e0;color:#194a8a} }
+  .chip.auto.off{opacity:.4;text-decoration:line-through}
+  .chip.add{border-style:dashed;color:var(--dim)}
+  /* 挑用語的浮層 */
+  #picker{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.72);
+          display:none;align-items:center;justify-content:center;padding:20px}
+  #picker.on{display:flex}
+  #picker .box{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        padding:18px 20px;max-width:720px;width:100%;max-height:80vh;overflow:auto}
+  #picker h3{margin:0 0 6px;font-size:16px}
+  #picker .sub{color:var(--dim);font-size:12px;margin:0 0 12px}
+  #picker .pool{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+  #picker .addrow{display:flex;gap:8px;flex-wrap:wrap}
+  #picker input{flex:1;min-width:180px;background:var(--card2);color:var(--txt);
+        border:1px solid var(--line);border-radius:8px;padding:8px 11px;font:14px inherit}
+  #picker .close{background:var(--accent);border:0;color:#fff;border-radius:8px;
+        padding:8px 16px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:14px}
+  @media (max-width:720px){ .card{flex-direction:column} .thumb{flex:none;max-width:none} }
+</style>
+</head>
+<body>
+<header>
+  <h1>📷 __TITLE__</h1>
+  <span class="root">__ROOT__</span>
+  <span class="spacer"></span>
+  <span class="stats" id="stats"></span>
+  <span class="filters" id="filters">
+    <button data-f="all" class="on">全部</button>
+    <button data-f="unrated">未評</button>
+    <button data-f="rated">已評</button>
+    <button data-f="del">待刪</button>
+    <button data-f="picked">已選</button>
+    <button data-f="dslr">📷 單眼</button>
+    <button data-f="iphone">📱 iPhone</button>
+  </span>
+  <label class="aiconf" title="開:匯出後 Claude 會整理你的心得、提案標籤/顏色,產一頁讓你確認再落地。關:Claude 直接處理不再問你。">
+    <input type="checkbox" id="aiconf" checked> AI 回報讓我確認
+  </label>
+  <span class="selinfo" id="selinfo"></span>
+  <button class="act" id="lasso" title="開啟後,用滑鼠在畫面上拖拉一個框,框到的照片就會被選起來">🖱 框選</button>
+  <button class="act" id="selvis" title="把「這一頁」畫面上現在看得到的全部選起來(會跟著篩選走)">全選本頁顯示的</button>
+  <button class="act" id="selstar" title="這一頁裡 3 顆星以上的全部選起來">選本頁 ★3 以上</button>
+  <button class="act" id="clearpage" title="只清掉「這一頁」的勾選,別頁不動">清除本頁</button>
+  <button class="act" id="clearsel" title="把整夾(所有分頁)的勾選全部清掉">清除全部</button>
+  <button class="act exp" id="export">⬇︎ 匯出</button>
+  __NAV__
+</header>
+
+<div class="deflt" id="deflt"></div>
+<div class="tagbar" id="tagbar"></div>
+
+<main id="list"></main>
+
+<div id="picker"><div class="box"><h3 id="pkTitle"></h3><p class="sub" id="pkSub"></p><div class="pool" id="pkPool"></div><div class="addrow"><input id="pkNew" placeholder="沒有的用語打在這裡,按「加進來」"> <button class="chip add" id="pkAdd">加進來</button></div><button class="close" id="pkClose">完成</button></div></div>
+
+<div id="band"></div>
+<div id="lb"><img id="lbimg" alt=""></div>
+<div id="map"><div class="box">
+  <div class="ttl" id="mapTtl"></div>
+  <div class="co" id="mapCo"></div>
+  <iframe id="mapFrame" title="拍攝位置" referrerpolicy="no-referrer"></iframe>
+  <div class="acts">
+    <a id="mapG" class="pri" target="_blank" rel="noreferrer">在 Google 地圖打開</a>
+    <a id="mapO" target="_blank" rel="noreferrer">在 OpenStreetMap 打開</a>
+    <button id="mapCopy">複製座標</button>
+    <button id="mapClose">關閉</button>
+  </div>
+  <div class="co">地圖要連網才看得到。沒網路的話,上面的座標一樣可以複製去用。</div>
+</div></div>
+<div class="toast" id="toast">已存檔</div>
+<div class="keys">
+  <span class="starleg">★1 存查 ・ ★2 猶豫 ・ <b>★3 確定要用(會匯出)</b> ・ ★4 佳作 ・ ★5 代表作</span><br>
+  滾輪瀏覽 ・ 點圖放大 ・ <b>0-5</b> 評分 ・ <b>X</b> 刪除 ・ <b>C</b> 沿用上一張的標籤 ・ <b>QWERTY</b> 作品 ・ <b>ASDGHJ</b> 用途 ・ <b>ZVBNM</b> 地點 ・ <b>UIOP</b> 主題 ・ <b>K</b> 選這張 ・ <b>🖱 框選</b>拖拉一次框很多 ・ 選取是<b>整夾共用</b>的,換頁不會掉 ・ 先點一張再 <b>Shift+點</b>另一張=選中間一整段 ・ 上面有「全選目前顯示的」 ・ <b>F</b> 心得框 ・ 隨改隨存
+</div>
+
+<script>
+const DATA = __DATA__;
+const KEY  = __STORAGE_KEY__;
+const TOTAL = __TOTAL__;
+const VOCAB = __VOCAB__;   // 來自用語表 §7,見 vocab.py
+// 星等的意思。⛔ 改了分級規則要順手改這裡。
+const STAR_HELP = {
+  1:"★1 看過但不用,純存查備份(不匯出)",
+  2:"★2 候選 / 猶豫,還沒決定",
+  3:"★3 確定要用,會寫進文章 ← 核心門檻,★3 以上一定匯出",
+  4:"★4 佳作:文章主力,也值得單獨分享",
+  5:"★5 代表作 / 精選,多平台都用"
+};
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e){ state = {}; }
+
+// ── 舊用語自動換成新的(例:日本地名統一用日文漢字)──
+// 你以前點過的「地點|澀谷」載入時就換成「地點|渋谷」,⛔ 不必自己回頭改。
+// 之後要再改用語,加一行到這裡就好;重複跑不會有副作用。
+const MIGRATE = { "地點|澀谷": "地點|渋谷" };
+function migrateTag(t){ return MIGRATE[t] || t; }
+
+const list = document.getElementById("list");
+const toast = document.getElementById("toast");
+let toastT;
+function ping(msg){ toast.textContent = msg||"已存檔"; toast.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>toast.classList.remove("show"),900); }
+
+// 台灣的日期。⛔ 不要用 new Date().toISOString():那是世界標準時間,比台灣慢 8 小時,
+// 凌晨 0 點到早上 8 點匯出會變成前一天(2026-09-16 查到)。而落地寫進總表的 review日期
+// 用的是台灣時間(apply.py 的 date.today()),兩邊會對不上。
+function localStamp(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+// 批次名只能是一個詞:總表用空白串標籤(apply.py),名字裡有空白會被拆成兩個標籤;
+// 「|」會變成階層。兩個都直接拿掉。
+function cleanBatchName(s){ return String(s||"").replace(/[\s|]+/g,""); }
+
+(function migrateState(){
+  let changed = false;
+  Object.keys(state).forEach(p=>{
+    const c = state[p]; if(!c) return;
+    ["t","x"].forEach(f=>{
+      if(!Array.isArray(c[f])) return;
+      const next = c[f].map(migrateTag).filter((v,i,a)=>a.indexOf(v)===i);
+      if(next.join("|") !== c[f].join("|")){ c[f] = next; changed = true; }
+    });
+  });
+  if(changed) localStorage.setItem(KEY, JSON.stringify(state));
+})();
+
+const PRE = {}; DATA.forEach(ph=>{ PRE[ph.path] = ph.pre || {s:0,d:0,n:""}; });
+function get(p){ return state[p] || PRE[p] || {s:0,d:0,n:""}; }
+
+// ⚠️ 分頁之間共用同一份 localStorage。以前 save() 是把「這一頁記憶中的整包」蓋回去 →
+//    另一個分頁在這之後存的東西會被洗掉(實例:「第二頁全選完跑到第三頁再全選,
+//    第二頁的就不見了」)。改成:先把硬碟上最新的讀回來,只蓋掉「這一頁真的改過」的那幾筆。
+const dirty = new Set();
+function readStored(){
+  try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e){ return {}; }
+}
+function save(){
+  const stored = readStored();
+  dirty.forEach(p=>{ if(state[p]) stored[p] = state[p]; else delete stored[p]; });
+  localStorage.setItem(KEY, JSON.stringify(stored));
+  state = stored;                       // 順便把別的分頁剛存的也接過來
+}
+function set(p, patch){ const c=get(p); state[p]=Object.assign({s:c.s,d:c.d,n:c.n,t:c.t||[],x:c.x||[],k:c.k||0},patch); dirty.add(p); save(); }
+
+// ══ 標籤按鈕(2026-08-23 加) ══════════════════════════════════
+// 用語來自用語表 §7(vocab.py 讀進來的 VOCAB);「這一夾用哪幾個」與「預設」存 localStorage。
+const CATS = ["作品","用途","地點","主題"];
+const ICON = {"作品":"🎬","用途":"🎯","地點":"📍","主題":"🖼"};
+const CFGKEY = KEY + "::cfg";
+const BATCHKEY = KEY + "::batch";   // 這一頁上次用的批次名
+let cfg = {active:{}, defaults:[], extra:{}};
+try { cfg = Object.assign(cfg, JSON.parse(localStorage.getItem(CFGKEY) || "{}")); } catch(e){}
+CATS.forEach(c=>{
+  if(!Array.isArray(cfg.active[c])) cfg.active[c] = [];
+  if(!Array.isArray(cfg.extra[c]))  cfg.extra[c]  = [];
+});
+if(!Array.isArray(cfg.defaults)) cfg.defaults = [];
+(function migrateCfg(){
+  let ch = false;
+  cfg.defaults = cfg.defaults.map(migrateTag);
+  CATS.forEach(c=>{
+    ["active","extra"].forEach(f=>{
+      cfg[f][c] = cfg[f][c].map(t=>{
+        const full = migrateTag(c + "|" + t);
+        return full.slice(c.length + 1);
+      }).filter((v,i,a)=>a.indexOf(v)===i);
+    });
+  });
+  ch = true;
+  if(ch) saveCfg();
+})();
+// 第一次打開這一夾:「用途」只有六個而且每夾都用得到,先全部拉出來省一次設定
+if(!cfg._init){ cfg._init = 1; if(!cfg.active["用途"].length) cfg.active["用途"] = VOCAB["用途"].items.slice(); saveCfg(); }
+function saveCfg(){ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }
+// 這一類全部可選的用語 = 用語表的 + 你自己加的
+function pool(c){ return VOCAB[c].items.concat(cfg.extra[c].filter(x=>VOCAB[c].items.indexOf(x)<0)); }
+function tagsOf(p){ const c=get(p); return Array.isArray(c.t) ? c.t.slice() : []; }
+function offOf(p){ const c=get(p); return Array.isArray(c.x) ? c.x.slice() : []; }
+// 這張照片最後會拿到的標籤 = (這一夾預設 − 這張排除掉的) + 這張自己點的
+function finalTags(p){
+  const off = offOf(p), own = tagsOf(p);
+  const out = cfg.defaults.filter(t=>off.indexOf(t)<0);
+  own.forEach(t=>{ if(out.indexOf(t)<0) out.push(t); });
+  return out;
+}
+function toggleTag(p, tag){
+  if(cfg.defaults.indexOf(tag) >= 0){          // 預設帶來的 → 這張要不要排除
+    const off = offOf(p); const i = off.indexOf(tag);
+    if(i>=0) off.splice(i,1); else off.push(tag);
+    set(p, {x: off});
+  } else {
+    const own = tagsOf(p); const i = own.indexOf(tag);
+    if(i>=0) own.splice(i,1); else own.push(tag);
+    set(p, {t: own});
+  }
+}
+
+// ── 「這次要處理哪幾張」(2026-08-23 加)──
+// 需求:一個資料夾幾千張,只想對其中挑出來的那幾張做下一步,而且可能不連續。
+// 選取跟星等**刻意分開**:星等是這張好不好,選取是「這一輪我要處理誰」。
+// 存在同一份 localStorage(欄位 k),所以跨分頁、關機都還在。
+let lastPicked = null;
+function setPick(p, v){ set(p, {k: v ? 1 : 0}); }
+function pickRange(a, b){
+  const lo = Math.min(a,b), hi = Math.max(a,b);
+  for(let j=lo; j<=hi; j++){
+    const c = document.querySelector('.card[data-idx="'+j+'"]');
+    if(c && c.style.display === "none") continue;   // 篩掉的不動,免得選到看不見的
+    if(DATA[j]) setPick(DATA[j].path, 1);
+  }
+  lastPicked = b;
+}
+function repaintPicks(){
+  document.querySelectorAll(".card").forEach(card=>{
+    const on = !!get(card.dataset.path).k;
+    card.classList.toggle("picked", on);
+    const b = card.querySelector(".pick");
+    if(b){ b.classList.toggle("on", on); b.textContent = on ? "☑ 已選" : "☐ 選這張"; }
+  });
+}
+// 標了刪除、但不在這次選取裡的 —— 頁首要先講,⛔ 不要等到按匯出才嚇他一跳
+function strayDeletes(selSet){
+  const out = [];
+  DATA.forEach(ph=>{ if(get(ph.path).d && !selSet.has(ph.path)) out.push(ph.path); });
+  Object.keys(state).forEach(p=>{
+    if(state[p] && state[p].d && !selSet.has(p) && out.indexOf(p)<0) out.push(p);
+  });
+  return out;
+}
+function pickedPaths(){
+  const out = [];
+  DATA.forEach(ph=>{ if(get(ph.path).k) out.push(ph.path); });          // 本頁
+  Object.keys(state).forEach(p=>{ if(state[p] && state[p].k && out.indexOf(p)<0) out.push(p); }); // 其他分頁
+  return out;
+}
+
+// ── 每張卡片的四排按鈕 ──
+function renderTags(card){
+  const p = card.dataset.path;
+  const box = card.querySelector(".tags"); if(!box) return;
+  const own = tagsOf(p), off = offOf(p);
+  box.innerHTML = CATS.map(c=>{
+    const keys = VOCAB[c].keys || "";
+    const chips = cfg.active[c].map((t,i)=>{
+      const tag = c + "|" + t;
+      const isDef = cfg.defaults.indexOf(tag) >= 0;
+      const cls = isDef ? ("chip auto" + (off.indexOf(tag)>=0 ? " off" : ""))
+                        : ("chip" + (own.indexOf(tag)>=0 ? " on" : ""));
+      const k = keys[i] ? '<span class="k">' + keys[i].toUpperCase() + '</span>' : "";
+      return '<button class="' + cls + '" data-tag="' + tag + '">' + t + k + '</button>';
+    }).join("");
+    const addLabel = cfg.active[c].length ? "＋" : ("＋ 選這一夾的" + c);
+    return '<div class="tline"><span class="cat">' + ICON[c] + " " + c + '</span>' + chips +
+           '<button class="chip add" data-pick="' + c + '">' + addLabel + '</button></div>';
+  }).join("");
+}
+
+// ── 頂部「這一夾預設」列 ──
+function renderDeflt(){
+  const el = document.getElementById("deflt");
+  const chips = cfg.defaults.map(t=>'<button class="chip auto" data-undef="'+t+'">'+t.replace("|","｜")+'</button>').join("");
+  el.innerHTML = '<span class="lb">這一夾預設:</span>' + chips +
+    '<button class="chip add" id="defAdd">＋ 加預設</button>' +
+    '<span class="hint">設一次,之後每張自動帶上(卡片裡淺藍色的就是)。點卡片裡的淺藍色可以讓「這一張」不要它。</span>';
+}
+function repaintAllTags(){
+  document.querySelectorAll(".card").forEach(renderTags);
+  renderDeflt();
+  if(typeof renderTagBar === "function") renderTagBar();
+}
+
+// ── 挑用語的浮層 ──
+const pk = document.getElementById("picker");
+let pkMode = null;   // 類名 = 挑這一類要顯示哪幾顆;"__def__" = 挑預設
+function openPicker(mode){
+  pkMode = mode;
+  const isDef = mode === "__def__";
+  document.getElementById("pkTitle").textContent =
+    isDef ? "這一夾預設要自動帶哪些標籤?" : "「" + mode + "」這一排要顯示哪幾顆?";
+  document.getElementById("pkSub").textContent =
+    isDef ? "選起來的每一張照片都會自動有。通常是這趟旅行的用途跟大地區。"
+          : "只放這一夾用得到的,不用把全部都拉出來。沒有的用語打在下面加。";
+  const wrap = document.getElementById("pkPool");
+  if(isDef){
+    const all = [];
+    CATS.forEach(c=>cfg.active[c].forEach(t=>all.push(c+"|"+t)));
+    wrap.innerHTML = all.length
+      ? all.map(t=>'<button class="chip'+(cfg.defaults.indexOf(t)>=0?" on":"")+'" data-p="'+t+'">'+t.replace("|","｜")+'</button>').join("")
+      : '<span class="hint">還沒有任何標籤。先到卡片上按各排的「＋」把用語拉出來。</span>';
+    document.getElementById("pkNew").style.display = "none";
+    document.getElementById("pkAdd").style.display = "none";
+  } else {
+    wrap.innerHTML = pool(mode).map(t=>
+      '<button class="chip'+(cfg.active[mode].indexOf(t)>=0?" on":"")+'" data-p="'+t+'">'+t+'</button>').join("");
+    document.getElementById("pkNew").style.display = "";
+    document.getElementById("pkAdd").style.display = "";
+    document.getElementById("pkNew").value = "";
+  }
+  pk.classList.add("on");
+}
+document.getElementById("pkPool").addEventListener("click", e=>{
+  const b = e.target.closest("button[data-p]"); if(!b) return;
+  const v = b.dataset.p;
+  const arr = pkMode === "__def__" ? cfg.defaults : cfg.active[pkMode];
+  const i = arr.indexOf(v);
+  if(i>=0) arr.splice(i,1); else arr.push(v);
+  b.classList.toggle("on", i<0);
+  saveCfg(); repaintAllTags(); buildHotkeys();
+});
+document.getElementById("pkAdd").addEventListener("click", ()=>{
+  const inp = document.getElementById("pkNew");
+  const v = inp.value.trim(); if(!v || pkMode === "__def__") return;
+  if(cfg.extra[pkMode].indexOf(v) < 0 && VOCAB[pkMode].items.indexOf(v) < 0) cfg.extra[pkMode].push(v);
+  if(cfg.active[pkMode].indexOf(v) < 0) cfg.active[pkMode].push(v);
+  saveCfg(); repaintAllTags(); buildHotkeys(); openPicker(pkMode);
+  ping("已加入「" + v + "」");
+});
+document.getElementById("pkNew").addEventListener("keydown", e=>{
+  if(e.key === "Enter"){ e.preventDefault(); document.getElementById("pkAdd").click(); }
+});
+document.getElementById("pkClose").addEventListener("click", ()=>pk.classList.remove("on"));
+pk.addEventListener("click", e=>{ if(e.target === pk) pk.classList.remove("on"); });
+
+document.getElementById("deflt").addEventListener("click", e=>{
+  if(e.target.id === "defAdd"){ openPicker("__def__"); return; }
+  const b = e.target.closest("button[data-undef]"); if(!b) return;
+  const i = cfg.defaults.indexOf(b.dataset.undef);
+  if(i>=0) cfg.defaults.splice(i,1);
+  saveCfg(); repaintAllTags();
+});
+
+// ── 鍵盤:字母 → 標籤 ──
+let HOTKEY = {};
+function buildHotkeys(){
+  HOTKEY = {};
+  CATS.forEach(c=>{
+    const keys = VOCAB[c].keys || "";
+    cfg.active[c].forEach((t,i)=>{ if(keys[i]) HOTKEY[keys[i]] = c + "|" + t; });
+  });
+}
+
+
+// ── 建卡片 ──
+let _lastDir = null;
+DATA.forEach((ph, i)=>{
+  const dir = ph.path.slice(0, ph.path.lastIndexOf("/"));
+  if(dir !== _lastDir){
+    _lastDir = dir;
+    const h = document.createElement("div");
+    h.className = "folderhead";
+    h.textContent = "📁 " + dir.slice(dir.lastIndexOf("/") + 1);
+    list.appendChild(h);
+  }
+  const c = get(ph.path);
+  const card = document.createElement("section");
+  card.className = "card";
+  card.dataset.path = ph.path;
+  card.dataset.idx = i;
+  card.dataset.dev = ph.dev || "";
+
+  const img = ph.src
+    ? `<img loading="lazy" src="${ph.src}" alt="${ph.name}">`
+    : `<div class="noimg">⚠️ ${ph.warn || "無法顯示"}<br>${ph.name}</div>`;
+
+  card.innerHTML = `
+    <div class="thumb">
+      ${img}
+      <div class="meta"><span class="fn">${ph.name}</span> <button class="cp" title="複製完整路徑">📋 複製路徑</button> · ${ph.ext.toUpperCase()} · ${ph.mb}MB · 🕐 ${ph.dt||'—'} · ${ph.gps ? `<button class="geo" title="看這張是在哪裡拍的">📍 位置</button>` : `<span class="nogeo" title="這張照片裡沒有記錄座標">📍 無位置</span>`}${ph.dev ? ` · <span class="dev ${ph.dev==='iPhone'?'ip':'dslr'}">${ph.dev==='iPhone'?'📱':'📷'} ${ph.devmodel||ph.dev}</span>` : ''}</div>
+    </div>
+    <div class="ctrl">
+      <div class="row">
+        <span class="stars" title="點星星評分,再點同一顆可清除">
+          ${[1,2,3,4,5].map(n=>`<span class="s" data-n="${n}" title="${STAR_HELP[n]}">★</span>`).join("")}
+        </span>
+        <button class="del-btn" title="標記刪除(不會馬上刪,只記錄)">🗑 刪除</button>
+        <button class="pick" title="把這張放進「這次要處理的」。按住 Shift 點可以一次選一整段(K)">☐ 選這張</button>
+      </div>
+      <div class="tags"></div>
+      <textarea placeholder="只有這張特別的事才寫(例如「這裡就是片頭那一幕」)。一般照片按上面的按鈕就好,不用打字。(按兩下 Control 可口述)"></textarea>
+    </div>`;
+  list.appendChild(card);
+
+  renderTags(card);
+  card.querySelector(".tags").addEventListener("click", e=>{
+    const pick = e.target.closest("button[data-pick]");
+    if(pick){ openPicker(pick.dataset.pick); return; }
+    const b = e.target.closest("button[data-tag]"); if(!b) return;
+    toggleTag(ph.path, b.dataset.tag); renderTags(card); renderTagBar(); ping();
+  });
+
+  card.addEventListener("mousedown", e=>{ if(!e.shiftKey) lastPicked = i; });
+
+  const pickBtn = card.querySelector(".pick");
+  pickBtn.addEventListener("click", e=>{
+    if(e.shiftKey && lastPicked !== null){ pickRange(lastPicked, i); }
+    else { setPick(ph.path, get(ph.path).k ? 0 : 1); lastPicked = i; }
+    repaintPicks(); updateStats(); applyFilter(); ping();
+  });
+
+  const stars = card.querySelector(".stars");
+  const delBtn = card.querySelector(".del-btn");
+  const ta = card.querySelector("textarea");
+  ta.value = c.n || "";
+
+  function paint(){
+    const st = get(ph.path);
+    stars.querySelectorAll(".s").forEach(s=>{
+      s.classList.toggle("on", parseInt(s.dataset.n) <= st.s);
+    });
+    delBtn.classList.toggle("on", !!st.d);
+    card.classList.toggle("del", !!st.d);
+    card.classList.toggle("rated", st.s>0);
+  }
+  paint();
+
+  stars.addEventListener("click", e=>{
+    const s = e.target.closest(".s"); if(!s) return;
+    const n = parseInt(s.dataset.n);
+    set(ph.path, {s: get(ph.path).s===n ? 0 : n});
+    paint(); updateStats(); ping();
+  });
+  delBtn.addEventListener("click", ()=>{
+    set(ph.path, {d: get(ph.path).d ? 0 : 1});
+    paint(); updateStats(); applyFilter(); ping(get(ph.path).d?"已標記刪除":"取消刪除");
+  });
+  let nt;
+  ta.addEventListener("input", ()=>{
+    clearTimeout(nt);
+    nt = setTimeout(()=>{ set(ph.path, {n: ta.value}); ping(); }, 500);
+  });
+
+  const im = card.querySelector("img");
+  if(im) im.addEventListener("click", ()=> openLB(ph.src, ph.name));
+
+  const geo = card.querySelector(".geo");
+  if(geo && ph.gps) geo.addEventListener("click", ()=> openMap(ph.name, ph.gps[0], ph.gps[1]));
+
+  const cp = card.querySelector(".cp");
+  if(cp) cp.addEventListener("click", async ()=>{
+    try { await navigator.clipboard.writeText(ph.path); }
+    catch(e){ const t=document.createElement("textarea"); t.value=ph.path;
+      document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+    ping("已複製路徑");
+  });
+});
+
+buildHotkeys();
+renderDeflt();
+repaintPicks();
+
+// ══ 標籤篩選列(2026-08-23)══════════════════════════════════
+// 需求:已經評過的照片會帶標籤,把標籤列在上面,點一下只留下那個標籤的照片。
+// 多選 = 越點越少(要同時有這些標籤才顯示)。⛔ 不做 OR —— 兩種邏輯混在同一排按鈕很難猜。
+let tagFilter = [];
+function usedTags(){
+  const c = new Map();
+  const bump = p => finalTags(p).forEach(t=> c.set(t, (c.get(t)||0) + 1));
+  DATA.forEach(ph=> bump(ph.path));
+  return [...c.entries()].sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0]));
+}
+function renderTagBar(){
+  const bar = document.getElementById("tagbar");
+  const list = usedTags();
+  if(!list.length){
+    bar.innerHTML = '<span class="lb">標籤篩選:</span><span class="none">這一頁還沒有任何標籤。標了就會出現在這裡。</span>';
+    return;
+  }
+  bar.innerHTML = '<span class="lb">標籤篩選:</span>' + list.map(([t,n])=>
+    '<button class="tf' + (tagFilter.indexOf(t)>=0 ? " on" : "") + '" data-t="' + t + '">' +
+    t.replace("|","｜") + '<span class="c">' + n + '</span></button>').join("") +
+    (tagFilter.length ? '<button class="tf" data-clear="1">✕ 清掉篩選</button>' : "");
+}
+document.getElementById("tagbar").addEventListener("click", e=>{
+  if(e.target.closest("button[data-clear]")){ tagFilter = []; renderTagBar(); applyFilter(); return; }
+  const b = e.target.closest("button[data-t]"); if(!b) return;
+  const t = b.dataset.t, i = tagFilter.indexOf(t);
+  if(i>=0) tagFilter.splice(i,1); else tagFilter.push(t);
+  renderTagBar(); applyFilter();
+});
+renderTagBar();   // ⚠️ 一定要放在 let tagFilter 之後,放前面整個 script 會死掉
+
+// 另一個分頁(同一夾的第 2、3 頁)存檔時,瀏覽器會通知這一頁 → 立刻把畫面更新成最新狀態。
+// 沒有這個的話,兩個分頁會各自顯示不同的「已選 N 張」,而且誰後存誰對。
+window.addEventListener("storage", e=>{
+  if(e.key !== KEY) return;
+  const stored = readStored();
+  dirty.forEach(p=>{ if(state[p]) stored[p] = state[p]; });
+  state = stored;
+  document.querySelectorAll(".card").forEach(card=>{
+    const st = get(card.dataset.path);
+    const g = card.querySelector(".stars");
+    if(g) g.querySelectorAll(".s").forEach(x=> x.classList.toggle("on", parseInt(x.dataset.n) <= st.s));
+    const db = card.querySelector(".del-btn");
+    if(db) db.classList.toggle("on", !!st.d);
+    card.classList.toggle("del", !!st.d);
+    card.classList.toggle("rated", st.s > 0);
+    renderTags(card);
+  });
+  repaintPicks(); updateStats(); applyFilter(); renderTagBar();
+});
+
+// ── 統計 ──
+function updateStats(){
+  let rated=0, del=0, geo=0;
+  DATA.forEach(ph=>{ const c=get(ph.path); if(c.s>0)rated++; if(c.d)del++; if(ph.gps)geo++; });
+  const nsel = pickedPaths().length;
+  const selInfoEl = document.getElementById("selinfo");
+  if(!nsel){ selInfoEl.innerHTML = ""; }
+  else {
+    let onPage = 0;
+    DATA.forEach(ph=>{ if(get(ph.path).k) onPage++; });
+    const stray = strayDeletes(new Set(pickedPaths())).length;
+    selInfoEl.innerHTML = `整夾已選 <b>${nsel}</b> 張(這一頁 ${onPage})` + (stray
+      ? ` ・ <span class="stray">＋ 另有 ${stray} 張標了刪除,匯出時會自動一起帶</span>`
+      : "");
+  }
+  // 匯出鈕要寫「實際會匯幾張」。以前只寫選取數,但標刪的會自動加進去 →
+  // 按鈕寫 12、檔案裡卻有 69 張 → 使用者看不出「上面到底會顯示幾張」。
+  {
+    const strayN = nsel ? strayDeletes(new Set(pickedPaths())).length : 0;
+    const btn = document.getElementById("export");
+    if(!nsel) btn.textContent = "⬇︎ 匯出(整夾)";
+    else if(!strayN) btn.textContent = `⬇︎ 匯出 ${nsel} 張`;
+    else btn.textContent = `⬇︎ 匯出 ${nsel + strayN} 張(挑的 ${nsel} ＋ 要刪的 ${strayN})`;
+  }
+  // ⛔ 按鈕一律固定顯示,不要依狀態自動藏起來。
+  //    工具列少一顆就會讓人以為「還是舊版」—— 版面每次長得不一樣,就沒有基準可以比。
+  //    需要時才變成可按,不能按的時候用淡色 + 提示說明原因。
+  { let onPg = 0; DATA.forEach(ph=>{ if(get(ph.path).k) onPg++; });
+    const dim = (el, ok, why)=>{ el.disabled = !ok; el.style.opacity = ok ? "" : ".45";
+                                 el.style.cursor = ok ? "" : "not-allowed"; if(!ok) el.title = why; };
+    dim(document.getElementById("clearpage"), onPg > 0, "這一頁目前沒有選取");
+    dim(document.getElementById("clearsel"),  nsel > 0, "整夾目前沒有選取");
+    dim(document.getElementById("selstar"),   rated > 0, "這一頁還沒有 ★3 以上的照片"); }
+  document.getElementById("stats").innerHTML =
+    `本頁 <b>${DATA.length}</b> / 全部 <b>${TOTAL}</b> ・ 已評 <b>${rated}</b> ・ <span class="d">待刪 ${del}</span> ・ 📍 有位置 <b>${geo}</b>`;
+}
+updateStats();
+
+// ── 篩選 ──
+let filter = "all";
+function applyFilter(){
+  document.querySelectorAll(".card").forEach(card=>{
+    const c = get(card.dataset.path);
+    let show = true;
+    if(filter==="unrated") show = c.s===0 && !c.d;
+    else if(filter==="rated") show = c.s>0;
+    else if(filter==="del") show = !!c.d;
+    else if(filter==="picked") show = !!c.k;
+    if(show && tagFilter.length){
+      const ts = finalTags(card.dataset.path);
+      show = tagFilter.every(t=> ts.indexOf(t) >= 0);
+    }
+    else if(filter==="dslr") show = card.dataset.dev==="單眼";
+    else if(filter==="iphone") show = card.dataset.dev==="iPhone";
+    card.style.display = show ? "" : "none";
+  });
+}
+// 一次選很多張。
+// 搭配上面的篩選用:先篩「已評」或「待刪」,再按「全選目前顯示的」。
+function pickVisible(test){
+  let n = 0;
+  document.querySelectorAll(".card").forEach(card=>{
+    if(card.style.display === "none") return;
+    const p = card.dataset.path;
+    if(test && !test(get(p), p)) return;
+    setPick(p, 1); n++;
+  });
+  repaintPicks(); updateStats(); applyFilter();
+  ping(n ? `已選取 ${n} 張` : "這個畫面上沒有符合的");
+}
+document.getElementById("selvis").addEventListener("click", ()=> pickVisible(null));
+document.getElementById("selstar").addEventListener("click", ()=> pickVisible(c=> c.s >= 3));
+
+document.getElementById("clearpage").addEventListener("click", ()=>{
+  let n = 0;
+  DATA.forEach(ph=>{ if(get(ph.path).k){ setPick(ph.path, 0); n++; } });
+  lastPicked = null; repaintPicks(); updateStats(); applyFilter();
+  ping(n ? `已清除這一頁的 ${n} 張(別頁不動)` : "這一頁沒有選取");
+});
+document.getElementById("clearsel").addEventListener("click", ()=>{
+  const all = pickedPaths();
+  if(all.length > DATA.length && !confirm(
+      "這會把**整夾所有分頁**的選取清掉,共 " + all.length + " 張。\n\n只想清這一頁請按取消,改用「清除本頁」。")) return;
+  all.forEach(p=> setPick(p, 0));
+  lastPicked = null; repaintPicks(); updateStats(); applyFilter();
+  ping(`已清除整夾的 ${all.length} 張`);
+});
+document.getElementById("filters").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll("#filters button").forEach(x=>x.classList.toggle("on", x===b));
+  applyFilter();
+});
+
+// ── 拍攝位置地圖 ──
+// 用 OpenStreetMap 的內嵌地圖(不需要金鑰);沒網路就只剩座標,⛔ 不要因此不顯示座標。
+const mapBox = document.getElementById("map");
+function openMap(name, lat, lon){
+  const d = 0.006;
+  document.getElementById("mapTtl").textContent = "📍 " + name;
+  document.getElementById("mapCo").textContent = lat.toFixed(6) + ", " + lon.toFixed(6);
+  document.getElementById("mapFrame").src =
+    "https://www.openstreetmap.org/export/embed.html?bbox=" +
+    (lon-d) + "," + (lat-d*0.7) + "," + (lon+d) + "," + (lat+d*0.7) +
+    "&layer=mapnik&marker=" + lat + "," + lon;
+  document.getElementById("mapG").href = "https://www.google.com/maps?q=" + lat + "," + lon;
+  document.getElementById("mapO").href = "https://www.openstreetmap.org/?mlat=" + lat + "&mlon=" + lon + "#map=16/" + lat + "/" + lon;
+  document.getElementById("mapCopy").onclick = async ()=>{
+    const t = lat + ", " + lon;
+    try { await navigator.clipboard.writeText(t); }
+    catch(e){ const x=document.createElement("textarea"); x.value=t;
+      document.body.appendChild(x); x.select(); document.execCommand("copy"); x.remove(); }
+    ping("已複製座標");
+  };
+  mapBox.classList.add("on");
+}
+function closeMap(){ mapBox.classList.remove("on"); document.getElementById("mapFrame").src="about:blank"; }
+document.getElementById("mapClose").addEventListener("click", closeMap);
+mapBox.addEventListener("click", e=>{ if(e.target===mapBox) closeMap(); });
+
+// ══ 遊標框選(2026-08-23)══════════════════════════════════════
+// 需求:進入選取模式後,可以用滑鼠拖拉框選,一次選出想要的那幾張。
+// 預設關著 —— 開著會蓋掉一般的點選與拉文字,不能當常態。
+// 拖拉 = 加選;按住 Alt 拖拉 = 取消選。拖到畫面上下緣會自動捲動,所以跨很多張也框得到。
+let lassoOn = false, dragging = false, sx = 0, sy = 0, dragAlt = false, autoTimer = null;
+const band = document.getElementById("band");
+const lassoBtn = document.getElementById("lasso");
+
+lassoBtn.addEventListener("click", ()=>{
+  lassoOn = !lassoOn;
+  document.body.classList.toggle("lasso", lassoOn);
+  lassoBtn.classList.toggle("lassoon", lassoOn);
+  ping(lassoOn ? "框選模式:拖出一個框就選起來(Alt+拖=取消選)" : "框選模式關閉");
+});
+
+function bandRect(x, y){
+  const l = Math.min(sx,x), t = Math.min(sy,y), w = Math.abs(x-sx), h = Math.abs(y-sy);
+  band.style.left = l+"px"; band.style.top = t+"px";
+  band.style.width = w+"px"; band.style.height = h+"px";
+  return {l, t, r:l+w, b:t+h};
+}
+document.addEventListener("mousedown", e=>{
+  if(!lassoOn || e.button !== 0) return;
+  if(e.target.closest("button, textarea, input, a, #picker, #map, header")) return;
+  dragging = true; dragAlt = e.altKey;
+  sx = e.pageX; sy = e.pageY;
+  bandRect(sx, sy); band.style.display = "block";
+  e.preventDefault();
+});
+document.addEventListener("mousemove", e=>{
+  if(!dragging) return;
+  bandRect(e.pageX, e.pageY);
+  // 靠近上下邊緣就自動捲,不然一次只框得到看得見的那兩三張
+  const edge = 70, sp = 18;
+  clearInterval(autoTimer); autoTimer = null;
+  if(e.clientY < edge)        autoTimer = setInterval(()=> window.scrollBy(0, -sp), 16);
+  else if(e.clientY > window.innerHeight - edge) autoTimer = setInterval(()=> window.scrollBy(0, sp), 16);
+});
+document.addEventListener("mouseup", e=>{
+  if(!dragging) return;
+  dragging = false; clearInterval(autoTimer); autoTimer = null;
+  const r = bandRect(e.pageX, e.pageY);
+  band.style.display = "none";
+  if(r.r - r.l < 6 && r.b - r.t < 6) return;        // 只是點一下,不當框選
+  let n = 0;
+  document.querySelectorAll(".card").forEach(card=>{
+    if(card.style.display === "none") return;
+    const b = card.getBoundingClientRect();
+    const top = b.top + window.scrollY, bot = b.bottom + window.scrollY;
+    const left = b.left + window.scrollX, right = b.right + window.scrollX;
+    if(right < r.l || left > r.r || bot < r.t || top > r.b) return;   // 沒交集
+    setPick(card.dataset.path, dragAlt ? 0 : 1); n++;
+  });
+  repaintPicks(); updateStats(); applyFilter();
+  ping(n ? (dragAlt ? `取消 ${n} 張` : `框到 ${n} 張`) : "這個框裡沒有照片");
+});
+
+// ── 燈箱 ──
+const lb = document.getElementById("lb"), lbimg = document.getElementById("lbimg");
+function openLB(src,name){ if(!src) return; lbimg.src=src; lbimg.alt=name; lb.classList.add("on"); }
+function closeLB(){ lb.classList.remove("on"); lbimg.src=""; }
+lb.addEventListener("click", closeLB);
+
+// ── 作用中卡片(鍵盤) ──
+let active = null;
+function pickActive(){
+  const mid = window.innerHeight/2;
+  let best=null, bd=1e9;
+  document.querySelectorAll(".card").forEach(card=>{
+    if(card.style.display==="none") return;
+    const r = card.getBoundingClientRect();
+    const d = Math.abs((r.top+r.bottom)/2 - mid);
+    if(d<bd){ bd=d; best=card; }
+  });
+  if(best!==active){
+    if(active) active.classList.remove("active");
+    active = best; if(active) active.classList.add("active");
+  }
+}
+let st;
+window.addEventListener("scroll", ()=>{ clearTimeout(st); st=setTimeout(pickActive,80); });
+window.addEventListener("resize", pickActive);
+pickActive();
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape"){ closeLB(); closeMap(); return; }
+  const typing = /^(TEXTAREA|INPUT)$/.test(e.target.tagName);
+  if(typing) return;
+  if(!active) return;
+  const path = active.dataset.path;
+  if(e.key>="0" && e.key<="5"){
+    set(path, {s: parseInt(e.key)});
+    active.querySelector(".stars").querySelectorAll(".s").forEach(s=>s.classList.toggle("on", parseInt(s.dataset.n)<=parseInt(e.key)));
+    active.classList.toggle("rated", parseInt(e.key)>0);
+    updateStats(); ping(); e.preventDefault();
+  } else if(e.key==="x"||e.key==="X"){
+    const nd = get(path).d?0:1; set(path,{d:nd});
+    active.querySelector(".del-btn").classList.toggle("on",!!nd);
+    active.classList.toggle("del",!!nd); updateStats(); applyFilter();
+    ping(nd?"已標記刪除":"取消刪除"); e.preventDefault();
+  } else if(e.key==="f"||e.key==="F"){
+    const ta=active.querySelector("textarea"); if(ta){ ta.focus(); e.preventDefault(); }
+  } else if(e.key==="k"||e.key==="K"){
+    setPick(path, get(path).k ? 0 : 1); lastPicked = parseInt(active.dataset.idx);
+    repaintPicks(); updateStats(); applyFilter(); ping(); e.preventDefault();
+  } else if(e.key==="c"||e.key==="C"){
+    // 沿用上一張:把前一張「自己點的標籤」與「排除掉的預設」整套照抄
+    const i = parseInt(active.dataset.idx);
+    if(i>0){
+      const prev = DATA[i-1].path;
+      set(path, {t: tagsOf(prev), x: offOf(prev)});
+      renderTags(active); renderTagBar(); ping("已沿用上一張");
+    } else ping("這是第一張,沒有上一張");
+    e.preventDefault();
+  } else if(HOTKEY[e.key.toLowerCase()]){
+    toggleTag(path, HOTKEY[e.key.toLowerCase()]);
+    renderTags(active); renderTagBar(); ping(); e.preventDefault();
+  }
+});
+
+// ── 匯出 ──
+document.getElementById("export").addEventListener("click", ()=>{
+  // 本頁:帶完整 metadata
+  // 有勾選 → 只匯勾選的那幾張;完全沒勾 → 照舊匯整夾(
+  // 「一個資料夾幾千張,我只想對我挑的那幾張做下一步」)
+  const sel = pickedPaths();
+  let onlySel = sel.length > 0;
+  const selSet = new Set(sel);
+
+  // 這一批的名字:只在「有勾選」時問,整夾匯出不問。
+  // 預設填今天的日期 → 不想打字直接按「好」,跟以前一模一樣。
+  // 為什麼要問:同一批分兩天評完,以前會自動斷成兩個日期標籤,在 Darktable 裡要點兩次。
+  let batch = null;
+  if(onlySel){
+    const today = localStamp().replace(/-/g,"");
+    let last = "";
+    try{ last = localStorage.getItem(BATCHKEY) || ""; }catch(_){}
+    const hint = (last && last !== today)
+      ? "\n\n這一頁上次用的名字是「" + last + "」,要跟上次併成同一批就打一樣的。" : "";
+    const ans = prompt("這一批要叫什麼名字?\n\n之後在 Darktable 左邊點這個名字,就能一次看到這批照片。\n不想打字就直接按「好」,會用今天的日期。" + hint, today);
+    if(ans === null){ ping("已取消匯出"); return; }
+    const name = cleanBatchName(ans) || today;
+    batch = "批次|" + name;
+    try{ localStorage.setItem(BATCHKEY, name); }catch(_){}
+  }
+
+  // ⚠️ 標了刪除卻不在這次選取裡的,預設要問一下(
+  //    他篩「已評」再全選匯出 → 標刪的沒被帶進來 → Claude 根本不知道那些要刪)。
+  //    刪除是「這一夾的決定」,不該被「這一輪處理誰」蓋掉。
+  if(onlySel){
+    // ⛔ 不要問:說好會自己處理的事,又跳一個框出來問,等於自打嘴巴。
+    //    他說得對:答案永遠是「要」,問了只是多一個步驟。刪除是這一夾的決定,一律帶上。
+    //    真正的把關在後面:apply.py 預設 dry-run,先把清單列出來,點頭才丟垃圾桶。
+    const strayDel = strayDeletes(selSet);
+    strayDel.forEach(p=> selSet.add(p));
+  }
+  const seen = new Set();
+  const rows = DATA.filter(ph => !onlySel || selSet.has(ph.path)).map(ph=>{
+    seen.add(ph.path);
+    const c = get(ph.path);
+    return { path:ph.path, name:ph.name, ext:ph.ext, stars:c.s, delete:!!c.d, note:c.n||"",
+             tags: finalTags(ph.path), gps: ph.gps || null };
+  });
+  // 其他分頁「已評/已標刪/有心得」的也一起帶(跨頁存同一 localStorage,一鍵匯整夾)
+  Object.keys(state).forEach(p=>{
+    if (seen.has(p)) return;
+    if (onlySel && !selSet.has(p)) return;
+    const c = state[p]; if (!c) return;
+    if (!(onlySel || c.s || c.d || (c.n && c.n.trim()))) return;
+    rows.push({ path:p, name:p.split("/").pop(),
+                ext:((p.split(".").pop()||"").toLowerCase()),
+                stars:c.s||0, delete:!!c.d, note:c.n||"", tags: finalTags(p) });
+  });
+  const stamp = localStamp();
+  // 這一批的記號:只寫進匯出檔(進而寫進 .xmp),⛔ 不動他頁面上的標籤。
+  // 有了它,Darktable 就能用「標籤」把這一批單獨撈出來,不必在幾千張裡找。
+  // (名字在上面一開始就問好了)
+  if(batch) rows.forEach(r=>{ if(r.tags.indexOf(batch)<0) r.tags = r.tags.concat([batch]); });
+
+  const payload = { root:KEY.replace(/^photoreview::/,""), exported:new Date().toISOString(),
+                    batch: batch,
+                    ai_confirm:document.getElementById("aiconf").checked,
+                    whole_folder:!onlySel, selection_only:onlySel, this_page:DATA.length,
+                    default_tags: cfg.defaults,
+                    new_terms: cfg.extra,   // 你在頁面上臨時加的用語 → 要寫回用語表 §7
+                    page_count:rows.length, photos:rows };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (onlySel ? "pick_" : "review_") + "__TITLE__".replace(/[^\w一-鿿-]/g,"_") + "_" + stamp + ".json";
+  a.click();
+  ping(batch ? ("已匯出 " + rows.length + " 筆,批次「" + batch.split("|")[1] + "」")
+              : ("已匯出整夾 " + rows.length + " 筆,回傳給 Claude"));
+});
+</script>
+</body>
+</html>

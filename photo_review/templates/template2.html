@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>確認 AI 整理 — __TITLE__</title>
+<style>
+  :root{--bg:#16181d;--card:#1e2128;--card2:#242832;--line:#31353f;--txt:#e8eaed;
+        --dim:#9aa0aa;--accent:#5b9dff;--star:#ffca3a;--del:#ff5d5d;--ok:#3ddc84;
+        --chg:#3a3320;--chgline:#c9a227;--same:#1b2a1f;--sameline:#2f6b43;}
+  @media (prefers-color-scheme: light){
+    :root{--bg:#f4f5f7;--card:#fff;--card2:#f0f1f4;--line:#dcdfe5;--txt:#1c1e22;--dim:#666c76;
+          --chg:#fff8e1;--chgline:#e0b400;--same:#eaf7ee;--sameline:#66b585;}}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--txt);font:15px/1.55 -apple-system,"PingFang TC",sans-serif}
+  header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 92%,transparent);
+         backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:10px 16px;
+         display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+  header h1{font-size:15px;margin:0} .root{font-size:11px;color:var(--dim);max-width:40vw;
+         overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .spacer{flex:1} .stats{font-size:13px;color:var(--dim)} .stats b{color:var(--txt)}
+  .legend{font-size:12px;color:var(--dim)}
+  .legend .y{color:var(--chgline);font-weight:700} .legend .g{color:var(--sameline);font-weight:700}
+  .act{background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;
+       padding:5px 11px;font-size:13px;cursor:pointer}
+  .act.exp{background:var(--ok);border-color:var(--ok);color:#08130c;font-weight:700}
+  .act.flt.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+  .filters{display:flex;gap:6px}
+  main{max-width:1200px;margin:0 auto;padding:16px}
+  .card{display:flex;gap:16px;border-radius:14px;padding:12px;margin:0 0 14px;
+        border:1px solid var(--line);background:var(--card)}
+  .card.changed{background:var(--chg);border-color:var(--chgline)}
+  .card.same{background:var(--same);border-color:var(--sameline)}
+  .card.del{opacity:.55}
+  .tag-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;align-self:flex-start}
+  .card.changed .tag-badge{background:var(--chgline);color:#000}
+  .card.same .tag-badge{background:var(--sameline);color:#000}
+  .thumb{flex:0 0 30vw;max-width:400px;min-width:200px;display:flex;flex-direction:column;gap:6px}
+  .thumb img{width:100%;max-height:56vh;object-fit:contain;border-radius:8px;background:#000;cursor:zoom-in}
+  .noimg{width:100%;height:180px;border:1px dashed var(--line);border-radius:8px;display:flex;
+         align-items:center;justify-content:center;color:var(--dim);text-align:center;font-size:13px;padding:10px}
+  .meta{font-size:11px;color:var(--dim);word-break:break-all}
+  .meta .fn{color:var(--txt);font-weight:600}
+  .ctrl{flex:1;display:flex;flex-direction:column;gap:9px;min-width:240px}
+  .lab{font-size:11px;color:var(--dim);margin-bottom:-4px}
+  .orig{font-size:12px;color:var(--dim);font-style:italic;background:var(--card2);
+        border-radius:8px;padding:6px 9px;border:1px solid var(--line)}
+  .orig b{color:var(--txt);font-style:normal}
+  .stars{font-size:24px;letter-spacing:3px;cursor:pointer;user-select:none}
+  .stars .s{color:var(--line)} .stars .s.on{color:var(--star)}
+  .colors{display:flex;gap:6px}
+  .colors button{width:30px;height:30px;border-radius:50%;border:2px solid transparent;
+        cursor:pointer;font-size:15px;background:var(--card2)}
+  .colors button.on{border-color:var(--txt)}
+  textarea,input.tags{width:100%;background:var(--card2);color:var(--txt);border:1px solid var(--line);
+        border-radius:10px;padding:9px 11px;font:14px/1.5 inherit}
+  textarea{min-height:64px;resize:vertical}
+  .del-btn{background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:8px;
+        padding:4px 11px;cursor:pointer;font-size:13px;align-self:flex-start}
+  .del-btn.on{background:var(--del);border-color:var(--del);color:#fff}
+  #lb{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.92);display:none;
+      align-items:center;justify-content:center;cursor:zoom-out}
+  #lb.on{display:flex} #lb img{max-width:96vw;max-height:96vh;object-fit:contain}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:40;background:var(--ok);
+        color:#08130c;font-weight:700;font-size:13px;padding:6px 14px;border-radius:20px;opacity:0;
+        transition:opacity .25s;pointer-events:none} .toast.show{opacity:1}
+  @media (max-width:720px){.card{flex-direction:column}.thumb{flex:none;max-width:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🤝 確認 AI 整理:__TITLE__</h1>
+  <span class="root">__ROOT__</span>
+  <span class="spacer"></span>
+  <span class="legend"><span class="y">■ 黃=我有改</span> ・ <span class="g">■ 綠=沒動</span></span>
+  <span class="filters">
+    <button class="act flt on" data-f="all">全部</button>
+    <button class="act flt" data-f="changed">只看改動</button>
+    <button class="act flt" data-f="same">只看沒動</button>
+  </span>
+  <span class="stats" id="stats"></span>
+  <button class="act exp" id="export">✅ 確認無誤,匯出</button>
+</header>
+<main id="list"></main>
+<div id="lb"><img id="lbimg" alt=""></div>
+<div class="toast" id="toast">已存</div>
+<script>
+const DATA = __DATA__;
+const KEY  = __STORAGE_KEY__;
+let state = {};
+try{ state = JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){ state={}; }
+const COLORS = [["red","🔴"],["yellow","🟡"],["green","🟢"]];
+const list = document.getElementById("list"), toast = document.getElementById("toast");
+let tt; function ping(m){toast.textContent=m||"已存";toast.classList.add("show");
+  clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove("show"),800);}
+
+// 目前值:優先讀 localStorage(他改過的),否則用 AI 提案 prop
+function cur(ph){
+  const s = state[ph.path];
+  if(s) return s;
+  return {stars:ph.prop.stars, color:ph.prop.color, tags:(ph.prop.tags||[]).join(" "), note:ph.prop.note, delete:ph.prop.delete};
+}
+function save(ph, patch){ state[ph.path]=Object.assign(cur(ph),patch);
+  localStorage.setItem(KEY,JSON.stringify(state)); ping(); }
+
+DATA.forEach(ph=>{
+  const c = cur(ph);
+  const card = document.createElement("section");
+  card.className = "card " + (ph.changed ? "changed" : "same") + (c.delete?" del":"");
+  card.dataset.path = ph.path;
+
+  const img = ph.src ? `<img loading="lazy" src="${ph.src}" alt="${ph.name}">`
+                     : `<div class="noimg">⚠️ ${ph.warn||"無法顯示"}<br>${ph.name}</div>`;
+  // 使用者口述的原文,只有跟提案不同時才顯示
+  const origNote = (ph.orig.note && ph.orig.note!==ph.prop.note)
+      ? `<div class="orig"><b>你原本寫的:</b> ${ph.orig.note}</div>` : "";
+
+  card.innerHTML = `
+    <div class="thumb">${img}
+      <div class="meta"><span class="fn">${ph.name}</span> · ${ph.ext.toUpperCase()} · ${ph.mb}MB</div>
+      <span class="tag-badge">${ph.changed?"AI 有調整":"未更動"}</span>
+    </div>
+    <div class="ctrl">
+      ${origNote}
+      <div class="lab">心得(可改)</div>
+      <textarea class="note">${c.note||""}</textarea>
+      <div class="lab">星等</div>
+      <span class="stars">${[1,2,3,4,5].map(n=>`<span class="s" data-n="${n}">★</span>`).join("")}</span>
+      <div class="lab">顏色標</div>
+      <div class="colors">
+        ${COLORS.map(([v,e])=>`<button data-c="${v}">${e}</button>`).join("")}
+        <button data-c="" title="清除">✕</button>
+      </div>
+      <div class="lab">標籤(空白分隔)</div>
+      <input class="tags" value="${(c.tags||"")}">
+      <button class="del-btn">🗑 刪除</button>
+    </div>`;
+  list.appendChild(card);
+
+  const stars=card.querySelector(".stars"), tags=card.querySelector(".tags"),
+        note=card.querySelector(".note"), delB=card.querySelector(".del-btn");
+  function paint(){
+    const v=cur(ph);
+    stars.querySelectorAll(".s").forEach(s=>s.classList.toggle("on",+s.dataset.n<=v.stars));
+    card.querySelectorAll(".colors button").forEach(b=>b.classList.toggle("on",b.dataset.c===v.color));
+    delB.classList.toggle("on",!!v.delete); card.classList.toggle("del",!!v.delete);
+  }
+  paint();
+  stars.addEventListener("click",e=>{const s=e.target.closest(".s");if(!s)return;
+    const n=+s.dataset.n; save(ph,{stars:cur(ph).stars===n?0:n}); paint();});
+  card.querySelector(".colors").addEventListener("click",e=>{const b=e.target.closest("button");
+    if(!b)return; save(ph,{color:b.dataset.c}); paint();});
+  let nt; note.addEventListener("input",()=>{clearTimeout(nt);
+    nt=setTimeout(()=>save(ph,{note:note.value}),500);});
+  let gt; tags.addEventListener("input",()=>{clearTimeout(gt);
+    gt=setTimeout(()=>save(ph,{tags:tags.value}),500);});
+  delB.addEventListener("click",()=>{save(ph,{delete:!cur(ph).delete});paint();});
+  const im=card.querySelector("img"); if(im) im.addEventListener("click",()=>openLB(ph.src,ph.name));
+});
+
+function updateStats(){
+  let chg=0,del=0; DATA.forEach(ph=>{if(ph.changed)chg++; if(cur(ph).delete)del++;});
+  document.getElementById("stats").innerHTML=`共 <b>${DATA.length}</b> ・ AI 調整 <b>${chg}</b> ・ 刪除 <b>${del}</b>`;
+}
+updateStats();
+
+// ── 篩選:全部 / 只看改動(黃) / 只看沒動(綠) ──
+let filterMode="all";
+function applyFilter(){
+  document.querySelectorAll(".card").forEach(card=>{
+    const isChg=card.classList.contains("changed");
+    const show = filterMode==="all" || (filterMode==="changed"&&isChg) || (filterMode==="same"&&!isChg);
+    card.style.display = show ? "" : "none";
+  });
+}
+document.querySelectorAll(".flt").forEach(b=>b.addEventListener("click",()=>{
+  filterMode=b.dataset.f;
+  document.querySelectorAll(".flt").forEach(x=>x.classList.toggle("on",x===b));
+  applyFilter();
+}));
+
+const lb=document.getElementById("lb"),lbimg=document.getElementById("lbimg");
+function openLB(s,n){if(!s)return;lbimg.src=s;lbimg.alt=n;lb.classList.add("on");}
+lb.addEventListener("click",()=>{lb.classList.remove("on");lbimg.src="";});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){lb.classList.remove("on");lbimg.src="";}});
+
+document.getElementById("export").addEventListener("click",()=>{
+  const rows=DATA.map(ph=>{const v=cur(ph);
+    return {path:ph.path,name:ph.name,ext:ph.ext,stars:v.stars||0,delete:!!v.delete,
+            note:v.note||"",color:v.color||"",
+            tags:(v.tags||"").split(/\s+/).filter(Boolean)};});
+  const payload={root:KEY.replace(/^photoconfirm::/,""),confirmed:new Date().toISOString(),photos:rows};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="confirmed_"+"__TITLE__".replace(/[^\w一-鿿-]/g,"_")+"_"+new Date().toISOString().slice(0,10)+".json";
+  a.click(); ping("已匯出確認檔,回傳給 Claude");
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "_readme": "Copy this file to config.local.json and edit the paths. See README.md.",
+  "camera_root": "~/Pictures/PhotoLibrary",
+  "notes_dir": "./data",
+  "vocab_file": "vocab.example.md",
+  "temp_dir": "./temp"
+}
